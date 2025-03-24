@@ -13,18 +13,7 @@ SPFGuard is a lightweight and efficient SPF (Sender Policy Framework) validation
 
 🔧 Easy to Use – Simple PHP-based implementation with minimal dependencies.
 
-📦 Installation & Usage
-
-Clone the repository:
-```
-git clone https://github.com/DevXSec/SPFCheckr.git
-cd SPFGuard
-```
-
-Run the script:
-```
-php check_spf.php yourdomain.com
-```
+🔌 Easy to integrate into existing PHP applications.
 
 📜 License
 MIT License – Open-source and free to use.
