@@ -1,0 +1,20 @@
+{
+    "name": "DevXSec/spf-checkr",
+    "description": "A lightweight PHP SPF record checker and validator.",
+    "type": "library",
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\Services\\SecurityManager\\Drivers\\": "src/"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Louis FILLOUX",
+            "email": "louis.fillouoxpv@gmail.com"
+        }
+    ]
+}
