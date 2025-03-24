@@ -9,25 +9,29 @@ SPFGuard is a lightweight and efficient SPF (Sender Policy Framework) validation
 
 ✅ IP Authorization Check – Validates if a sender’s IP is allowed by the SPF policy.
 
-📊 Detailed Analysis – Extracts included domains, IPs, and policies (+all, -all, ~all, ?all).
-
-🚀 Fast & Lightweight – Optimized for quick DNS lookups and parsing.
+📊 Detailed Analysis – Extracts included domains, IPs, mx, a and policies (+all, -all, ~all, ?all).
 
 🔧 Easy to Use – Simple PHP-based implementation with minimal dependencies.
 
 📦 Installation & Usage
+
+```
 Clone the repository:
 
 sh
 Copier
 Modifier
-git clone https://github.com/yourusername/SPFGuard.git
+git clone https://github.com/DevXSec/SPFGuard.git
 cd SPFGuard
+```
+```
 Run the script:
 
 sh
 Copier
 Modifier
 php check_spf.php yourdomain.com
+```
+
 📜 License
 MIT License – Open-source and free to use.
