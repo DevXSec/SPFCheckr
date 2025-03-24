@@ -17,7 +17,7 @@ SPFGuard is a lightweight and efficient SPF (Sender Policy Framework) validation
 
 Clone the repository:
 ```
-git clone https://github.com/DevXSec/SPFGuard.git
+git clone https://github.com/DevXSec/SPFCheckr.git
 cd SPFGuard
 ```
 
