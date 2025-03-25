@@ -1,40 +1,38 @@
 <?php
 
-use Exception;
-
 class SPFResult
 {
     /**
      * Something went wrong during the SPF Check.
      * @var string
      */
-    public  $ERROR = 'ERROR';
+    public static $ERROR = 'ERROR';
 
     /**
      * The email message comes from a legitimate source.
      * @var string
      */
-    public $SPF_PASS = 'SPF_PASS';
+    public static $SPF_PASS = 'SPF_PASS';
 
     /**
      * In this case, the email message hasn’t come from a legitimate source, due to which it will get rejected.
      * @var string
      */
-    public $SPF_FAIL = 'SPF_FAIL';
+    public static $SPF_FAIL = 'SPF_FAIL';
 
     /**
      * In this case, the email neither passes nor fails authentication checks since the SPF
      * record doesn’t explicitly state whether the sender is authorized to send messages.
      * @var string
      */
-    public $SPF_NEUTRAL = 'SPF_NEUTRAL';
+    public static $SPF_NEUTRAL = 'SPF_NEUTRAL';
 
     /**
      * The recipient’s server accepts the message failing SPF authentication checks,
      * but it will land in the spam folder.
      * @var string
      */
-    public $SPF_SOFTFAIL = 'SPF_SOFTFAIL';
+    public static $SPF_SOFTFAIL = 'SPF_SOFTFAIL';
 }
 
 class SPFCheckr
@@ -77,9 +75,9 @@ class SPFCheckr
         $this->domain = $senderDomain;
         $this->ip = $senderIP;
         if (filter_var($senderIP, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $this->option = "IPv4";
+            $this->setOption("IPv4");
         } else if (filter_var($senderIP, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            $this->option = "IPv6";
+            $this->setOption("IPv6");
         }
     }
 
@@ -98,9 +96,19 @@ class SPFCheckr
         return $this->option;
     }
 
-    protected function getErrorFlag(): string
+    protected function setOption(string $option): void
+    {
+        $this->option = $option;
+    }
+
+    protected function getErrorFlag(): ?string
     {
         return $this->errorFlag;
+    }
+
+    protected function setErrorFlag(string $errorFlag): void
+    {
+        $this->errorFlag = $errorFlag;
     }
 
     /**
@@ -116,15 +124,21 @@ class SPFCheckr
                 $spfInfos = $this->extractInfosForSPFRecord($spfRecord);
                 if ($this->checkIPinAllowedIPs($spfInfos, $this->getIP())) {
                     return SPFResult::$SPF_PASS;
-                } else if ($this->getErrorFlag()) {
-                    return $this->handleSPFResult();
                 }
-                return SPFResult::$FAIL;
+                return $this->handleSPFResult();
             }
         }
 
         return SPFResult::$ERROR;
     }
+
+
+    /*
+    =============================
+    =           Utils           =
+    =============================
+    */
+
 
     /**
      * Checks something was found from the dns functions.
@@ -141,7 +155,7 @@ class SPFCheckr
      */
     public function handleSPFResult(): string
     {
-        switch ($this->errorFlag) {
+        switch ($this->getErrorFlag()) {
             case '+':
                 return SPFResult::$SPF_PASS;
             case '-':
@@ -154,8 +168,16 @@ class SPFCheckr
                 break;
         }
 
-        return SPFResult::$ERROR;
+        return SPFResult::$SPF_FAIL;
     }
+
+
+    /*
+    =============================
+    =Extractions from SPF Record=
+    =============================
+    */
+
 
     /**
      * Extracts the IPs (IPv4/IPv6) from the spf record.
@@ -175,7 +197,7 @@ class SPFCheckr
      */
     public function extractIncludes(string $spfRecord): array
     {
-        preg_match_all('/include\\s*:\\s*([a-zA-Z0-9._-]+)/i', $cleanedSPF, $matches);
+        preg_match_all('/include\\s*:\\s*([a-zA-Z0-9._-]+)/i', $spfRecord, $matches);
         return array_values(array_filter($matches[1]));
     }
 
@@ -186,7 +208,7 @@ class SPFCheckr
      */
     public function extractRedirect(string $spfRecord): array
     {
-        preg_match_all('/include\\s*:\\s*([a-zA-Z0-9._-]+)/i', $cleanedSPF, $matches);
+        preg_match_all('/redirect\\s*=\\s*([a-zA-Z0-9._-]+)/i', $spfRecord, $matches);
         return array_values(array_filter($matches[1]));
     }
 
@@ -225,15 +247,21 @@ class SPFCheckr
      * Extracts the "all" flag (muse to handle the SPF response if IP doesn't match) in the spf record.
      *
      * @param string $spfRecord from getSPFRecord.
-     * @param string $domain from which we are performing the spf record look up.
      */
-    public function extractAllFlag(string $spfRecord): ?string
+    public function extractAllFlag(string $spfRecord): void
     {
         if (preg_match('/([+\-~?]?)all\b/i', $spfRecord, $match)) {
-            $this->errorFlag = $match[1][0];
+            $this->setErrorFlag($match[1][0]);
         }
-        return null;
     }
+
+
+    /*
+    =============================
+    =          Checks           =
+    =============================
+    */
+    
 
     /**
      * Checks if a domain exists.
@@ -275,26 +303,34 @@ class SPFCheckr
         return checkdnsrr($domain, "AAAA");
     }
 
+
+    /*
+    =============================
+    =            IPs            =
+    =============================
+    */
+
+
     /**
      * Get the IPs of the domain.
      *
      * @param string $domain for which we are performing the check.
      * @param string $option if we are looking for IPv4 or IPv6.
      */
-    public function getDomainIps(string $domain, string $option): array
+    public function getDomainIps(string $domain): array
     {
         $ips = [];
     
-        switch ($this->errorFlag) {
+        switch ($this->getOption()) {
             case 'IPv4':
-                if ($this->checkExistenceOfA($subdomain)) {
-                    $domainIPv4s = $this->getARecord($subdomain);
+                if ($this->checkExistenceOfA($domain)) {
+                    $domainIPv4s = $this->getARecord($domain);
                     $ips = array_unique(array_merge($ips, $domainIPv4s));
                 }
                 break;
             case 'IPv6':
-                if ($this->checkExistenceOfAAAA($subdomain)) {
-                    $domainIPv6s = $this->getAAAARecord($subdomain);
+                if ($this->checkExistenceOfAAAA($domain)) {
+                    $domainIPv6s = $this->getAAAARecord($domain);
                     $ips = array_unique(array_merge($ips, $domainIPv6s));
                 }
                 break;
@@ -312,7 +348,7 @@ class SPFCheckr
      */
     public function isIPv4Allowed(array $IPsv4): bool
     {
-        var $ip = $this->getIP();
+        $ip = $this->getIP();
         foreach ($IPsv4 as $allowedIp) {
             if ($ip === $allowedIp) {
                 return true;
@@ -402,14 +438,14 @@ class SPFCheckr
      *
      * @param array $domainIPs extracted from the checks for the domain and subdomains.
      */
-    public function checkIPinAllowedIPs($domainIPs)
+    public function checkIPinAllowedIPs($domainIPs): bool
     {
         switch ($this->getOption())
         {
             case 'IPv4':
-                return $this->isIPv4Allowed($domainIPs, $this->getIP());
+                return $this->isIPv4Allowed($domainIPs);
             case 'IPv6':
-                return $this->isIPv6Allowed($domainIPs, $this->getIP());
+                return $this->isIPv6Allowed($domainIPs);
             default:
                 break;
         }
@@ -417,12 +453,21 @@ class SPFCheckr
         return false;
     }
 
+
+    /*
+    =============================
+    = Get Records for a domain  =
+    =============================
+    */
+
+
     /**
      * Get the SPF Record from our specified domain.
      *
      * @param string $domain from which we want to extract the spf record.
      */
-    public function getSPFRecord($domain) {
+    public function getSPFRecord(string $domain): string
+    {
         $records = dns_get_record($domain, DNS_TXT);
         foreach ($records as $record) {
             if (isset($record['txt']) && strpos($record['txt'], 'v=spf1') === 0) {
@@ -438,7 +483,7 @@ class SPFCheckr
      *
      * @param string $domain from which we want to extract the mx record.
      */
-    public function getMXRecord($domain) {
+    public function getMXRecord(string $domain) {
         $res = [];
         $records = dns_get_record($domain, DNS_MX);
         foreach ($records as $record) {
@@ -484,20 +529,61 @@ class SPFCheckr
         return $res;
     }
 
+    /*
+    =============================
+    =       Parsing Infos       =
+    =============================
+    */
+
     /**
-     * @throws Exception
+     * Extract the IPv4s or IPv6s of the array of IPs.
+     *
+     * @param array $ips the ips extracted from the spf check.
      */
-    public function parseSPF(string $spfRecord): array
+    public function parseIPs(array $ips): array
+    {
+        $parsedIPs = [];
+
+        switch ($this->getOption())
+        {
+            case 'IPv4':
+                foreach ($ips as $ip) {
+                    if (filter_var(explode('/', $ip)[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                        $parsedIPs[] = $ip;
+                    }
+                }
+                break ;
+            case 'IPv6':
+                foreach ($ips as $ip) {
+                    if (filter_var(explode('/', $ip)[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                        $parsedIPs[] = $ip;
+                    }
+                }
+                break ;
+            default:
+                break;
+        }
+
+        return $parsedIPs;
+    }
+
+    /**
+     * Extract the infos (ips and domains (includes, a, redirect)) of the SPF Record and domain.
+     *
+     * @param string $spfRecord the result from getSPFRecord.
+     * @param string $domain the domain for which we are checking the spf record.
+     */
+    public function parseSPF(string $spfRecord, string $domain): array
     {
         $ips = $this->extractIPs($spfRecord);
         $includes = $this->extractIncludes($spfRecord);
         $redirect = $this->extractRedirect($spfRecord);
-        $mx = $this->extractMX($spfRecord);
+        $mx = $this->extractMX($spfRecord, $domain);
         $a = $this->extractA($spfRecord);
 
         if ($mx) {
             foreach ($mx as $mxDomain) {
-                $mxIPs = $this->getSubDomainIPs($mxDomain);
+                $mxIPs = $this->getDomainIps($mxDomain);
                 if ($mxIPs) {
                     $ips = array_unique(array_merge($ips, $mxIPs));
                 }
@@ -505,16 +591,17 @@ class SPFCheckr
         }
         if ($a) {
             foreach ($a as $aDomain) {
-                $aIPs = $this->getSubDomainIPs($aDomain);
+                $aIPs = $this->getDomainIps($aDomain);
                 if ($aIPs) {
                     $ips = array_unique(array_merge($ips, $aIPs));
                 }
             }
         }
 
+
         $domains = $includes;
         if ($redirect) {
-            $domains[] = $redirect;
+            $domains = array_unique(array_merge($domains, $redirect));
         }
         if ($mx) {
             $domains = array_unique(array_merge($domains, $mx));
@@ -522,17 +609,29 @@ class SPFCheckr
         if ($a) {
             $domains = array_unique(array_merge($domains, $a));
         }
-
+        
         return [
             'ips' => $ips,
             'domains' => array_unique($domains)
         ];
     }
 
+
+    /*
+    =============================
+    =         Resolvers         =
+    =============================
+    */
+
+
     /**
-     * @throws Exception
+     * Extract the IPv4s or IPv6s of the SPF Record depending on the domain.
+     *
+     * @param array $includes the domains that we extracted from the parseSPF.
+     * @param array $vistied to make it recursive and keep them in mind.
      */
-    public function resolveIncludeSPF($includes, &$visited = []) {
+    public function resolveIncludeDomainsIPs(array $includes, &$visited = []): array
+    {
         $allIPs = [];
         $allDomains = [];
 
@@ -542,63 +641,44 @@ class SPFCheckr
             }
 
             $visited[] = $include;
-            $allDomains[] = $include;
 
             $spf = $this->getSPFRecord($include);
-            $this->actualDomain = $include;
             if ($spf) {
-                if (!$this->errorFlag) {
+                if ($this->getErrorFlag() === null) {
                     $this->extractAllFlag($spf);
                 }
 
-                $parsedSPF = $this->parseSPF($spf);
+                $parsedSPF = $this->parseSPF($spf, $include);
 
-                $allIPs = array_merge($allIPs, $parsedSPF['ips']);
-
-                $subIncludes = $this->resolveIncludeSPF($parsedSPF['domains'], $visited);
-
-                $allIPs = array_merge($allIPs, $subIncludes['ips']);
-                $allDomains = array_merge($allDomains, $subIncludes['domains']);
+                $allIPs = array_merge($allIPs, $this->parseIPs($parsedSPF['ips']));
+                $subIncludes = $this->resolveIncludeDomainsIPs($parsedSPF['domains'], $visited);
+                $allIPs = array_merge($allIPs, $this->parseIPs($subIncludes['ips']));
             }
         }
 
         return [
             'ips' => $allIPs,
-            'domains' => array_unique($allDomains),
+            'domains' => array_unique($visited),
         ];
     }
 
     /**
-     * @throws Exception
+     * Extract the IPv4s or IPv6s of the SPF Record depending on the domain.
+     *
+     * @param string $spfRecord that we extracted from the getSPFRecord.
      */
-    public function extractInfosForSPFRecord($spfRecord) {
-        $parsedSPF = $this->parseSPF($spfRecord);
+    public function extractInfosForSPFRecord(string $spfRecord): array
+    {
+        $parsedSPF = $this->parseSPF($spfRecord, $this->getDomain());
 
-        $resolvedIncludeIPs = $this->resolveIncludeSPF($parsedSPF['domains']);
-        $allIPs = array_unique(array_merge($parsedSPF['ips'], $resolvedIncludeIPs['ips']));
+        $resolvedIncludeIPs = $this->resolveIncludeDomainsIPs($parsedSPF['domains']);
+        $ips = array_unique(array_merge($parsedSPF['ips'], $resolvedIncludeIPs['ips']));
 
-        $allDomains = array_unique(array_merge([$this->fromDomain], array_merge($parsedSPF['domains'], $resolvedIncludeIPs['domains'])));
-
-        $domainIPs = $this->getSubDomainIps($this->fromDomain);
+        $domainIPs = $this->getDomainIps($this->getDomain());
         if ($domainIPs) {
-            $allIPs = array_unique(array_merge($allIPs, $domainIPs));
+            $ips = array_unique(array_merge($ips, $domainIPs));
         }
 
-        $ipv4 = [];
-        $ipv6 = [];
-
-        foreach ($allIPs as $ip) {
-            if (filter_var(explode('/', $ip)[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                $ipv4[] = $ip;
-            } else if (filter_var(explode('/', $ip)[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                $ipv6[] = $ip;
-            }
-        }
-
-        return [
-            'ipv4' => $ipv4,
-            'ipv6' => $ipv6,
-            'domains' => $allDomains
-        ];
+        return $ips;
     }
 }
