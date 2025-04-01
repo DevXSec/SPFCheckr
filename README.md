@@ -1,8 +1,8 @@
 # SPFCheckr
 
-🚀 SPFGuard – A Simple Yet Powerful SPF Record Checker
+🚀 SPFCheckr – A Simple Yet Powerful SPF Record Checker
 
-SPFGuard is a lightweight and efficient SPF (Sender Policy Framework) validation tool that helps verify if an IP address is authorized to send emails on behalf of a domain. This tool is ideal for email security analysis, ensuring that your mail server configurations align with SPF authentication best practices.
+SPFCheckr is a lightweight and efficient SPF (Sender Policy Framework) validation tool that helps verify if an IP address is authorized to send emails on behalf of a domain. This tool is ideal for email security analysis, ensuring that your mail server configurations align with SPF authentication best practices.
 
 ✨ Features
 🔍 SPF Record Lookup – Fetches and parses SPF records for any domain.
